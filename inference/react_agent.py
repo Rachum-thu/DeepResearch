@@ -58,9 +58,9 @@ class MultiTurnReactAgent(FnCallAgent):
     
     def call_server(self, msgs, planning_port, max_tries=10):
         
-        openai_api_key = "EMPTY"
-        openai_api_base = f"http://127.0.0.1:{planning_port}/v1"
-
+        openai_api_key = os.getenv("OPENROUTER_API_KEY", "")
+        openai_api_base = "https://openrouter.ai/api/v1"
+        
         client = OpenAI(
             api_key=openai_api_key,
             base_url=openai_api_base,
@@ -72,7 +72,7 @@ class MultiTurnReactAgent(FnCallAgent):
             try:
                 print(f"--- Attempting to call the service, try {attempt + 1}/{max_tries} ---")
                 chat_response = client.chat.completions.create(
-                    model=self.model,
+                    model="alibaba/tongyi-deepresearch-30b-a3b",
                     messages=msgs,
                     stop=["\n<tool_response>", "<tool_response>"],
                     temperature=self.llm_generate_cfg.get('temperature', 0.6),
@@ -84,8 +84,8 @@ class MultiTurnReactAgent(FnCallAgent):
                 content = chat_response.choices[0].message.content
 
                 # OpenRouter provides API calling. If you want to use OpenRouter, you need to uncomment line 89 - 90.
-                # reasoning_content = "<think>\n" + chat_response.choices[0].message.reasoning.strip() + "\n</think>"
-                # content = reasoning_content + content                
+                reasoning_content = "<think>\n" + chat_response.choices[0].message.reasoning.strip() + "\n</think>"
+                content = reasoning_content + content                
                 
                 if content and content.strip():
                     print("--- Service call successful, received a valid response ---")
@@ -110,12 +110,21 @@ class MultiTurnReactAgent(FnCallAgent):
         return f"vllm server error!!!"
 
     def count_tokens(self, messages):
-        tokenizer = AutoTokenizer.from_pretrained(self.llm_local_path) 
-        full_prompt = tokenizer.apply_chat_template(messages, tokenize=False)
-        tokens = tokenizer(full_prompt, return_tensors="pt")
-        token_count = len(tokens["input_ids"][0])
-        
-        return token_count
+        try:
+            # Try to load local tokenizer if available
+            tokenizer = AutoTokenizer.from_pretrained(self.llm_local_path)
+            full_prompt = tokenizer.apply_chat_template(messages, tokenize=False)
+            tokens = tokenizer(full_prompt, return_tensors="pt")
+            token_count = len(tokens["input_ids"][0])
+            return token_count
+        except Exception as e:
+            # Fallback to simple estimation when tokenizer not available (e.g., using API)
+            print(f"Warning: Could not load tokenizer, using token estimation. Error: {e}")
+            # Simple estimation: ~4 chars per token for English, ~2 for Chinese
+            total_chars = sum(len(str(msg.get('content', ''))) for msg in messages)
+            # Conservative estimate: assume 2 chars per token
+            estimated_tokens = total_chars // 2
+            return estimated_tokens
 
     def _run(self, data: str, model: str, **kwargs) -> List[List[Message]]:
         self.model=model

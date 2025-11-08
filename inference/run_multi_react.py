@@ -38,7 +38,9 @@ if __name__ == "__main__":
     model_name = os.path.basename(model.rstrip('/'))
 
     model_dir = os.path.join(output_base, f"{model_name}_sglang")
-    dataset_dir = os.path.join(model_dir, args.dataset)
+    # Extract dataset name from file path (remove extension)
+    dataset_name = os.path.splitext(os.path.basename(args.dataset))[0]
+    dataset_dir = os.path.join(model_dir, dataset_name)
 
     os.makedirs(dataset_dir, exist_ok=True)
 
@@ -166,7 +168,8 @@ if __name__ == "__main__":
 
         test_agent = MultiTurnReactAgent(
             llm=llm_cfg,
-            function_list=["search", "visit", "google_scholar", "PythonInterpreter"]
+            # function_list=["search", "visit", "google_scholar", "PythonInterpreter"]
+            function_list=["search", "visit", "google_scholar"]
         )
 
         write_locks = {i: threading.Lock() for i in range(1, roll_out_count + 1)}

@@ -123,7 +123,7 @@ class Visit(BaseTool):
                             content = content[left:right+1]
                     return content
             except Exception as e:
-                # print(e)
+                print(f"[visit] call_server error (attempt {attempt+1}/{max_retries}): {e}")
                 if attempt == (max_retries - 1):
                     return ""
                 continue

@@ -1,6 +1,8 @@
 # Environment files
 .env
 .history
+data
+output
 
 # Python
 __pycache__/
